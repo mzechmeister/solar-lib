@@ -1,0 +1,201 @@
+<html>
+<head>
+<title>Solar spectrum library</title>
+<script src='https://cdn.plot.ly/plotly-2.14.0.min.js'></script>
+<script src='zoom_pan.js'></script>
+
+<style>
+#wluser:not(:checked) ~ * {
+    color: gray;
+}
+
+#lamcen:focus, #lamcen:focus {
+    color: unset;
+}
+
+#wlopt label {
+    display: inline-block;
+    width: 5em;
+    height: 1.5em;
+    border: 1px solid black;
+    margin: 2px;
+    text-align: center;
+    opacity: 0.5;
+}
+
+[name="lamtip"] {
+    display: none;
+}
+
+#wlopt input:checked+label {
+    box-shadow: none;
+    opacity: unset;
+}
+
+#wlopt label:hover {
+    box-shadow: 0 0 4px #03F;
+    opacity: 0.7;
+}
+</style>
+</head>
+
+<h1 style="text-align: center">IAG solar spatial resolved spectrum library</h1>
+
+<div id="spectrum" style="height: 400px" oncontextmenu="return false"></div>
+<div style="text-align: center">
+<input type="radio" id="wluser" name="lamtip"><label for="wluser'" title="user" style="display: none">user</label>
+<label for=""><i>λ</i><sub>central</sub> [Å]</label> <input id="lamcen" type="number" value="6000" onchange="redo(1)">
+<label for="">width [px]</label> <input id="lamwid" type="number" value="6500" step="100" onchange="redo(1)"></div>
+
+<div id="wlopt" style="text-align: center"></div>
+<div id="slider" style="height: 120px" oncontextmenu="return false"></div>
+
+<script>
+sliderdiv = document.getElementById('slider');
+
+colors = [
+    '#1f77b4',  // muted blue
+    '#ff7f0e',  // safety orange
+    '#2ca02c',  // cooked asparagus green
+    '#d62728',  // brick red
+    '#9467bd',  // muted purple
+    '#8c564b',  // chestnut brown
+    '#e377c2',  // raspberry yogurt pink
+    '#7f7f7f',  // middle gray
+    '#bcbd22',  // curry yellow-green
+    '#17becf'   // blue-teal
+]
+
+lines = [[5000, "500"], [5891.42, "NaD<sub>2</sub>"], [5897.496, "NaD<sub>1</sub>"],
+         [6564.5, "Hα"],
+         [7000, "700"], [8000, "800"]
+]
+
+for (const [i, li] of lines.entries()) {
+    wlopt.innerHTML += '<input type="radio" id="l'+li[0]+'" name="lamtip" onclick="lamcen.value='+li[0]+'; redo()"><label for="l'+li[0]+'" title="'+li[0]+'" style="background-color:'+colors[i+1]+'">'+li[1]+'</label>'
+}
+
+wlmin = 4200   // [Angstrom]
+dwl = 0.001
+
+
+async function read(file, start, stop, func) {
+    var headers = {Range: `bytes=${2880+8*start}-${2880+8*stop-1}`};
+    var response = await fetch(file, {headers});
+
+    // swap endian
+    buf = await response.arrayBuffer()
+    d = new Float64Array(new Int8Array(buf.slice()).reverse().buffer).reverse()
+
+    info.innerHTML = file
+
+    return d
+}
+
+async function redo(user=false) {
+    if (user) wluser.checked = true;
+    console.log(lamcen.value)
+    icen = parseInt((lamcen.valueAsNumber - wlmin) / dwl)
+
+    ileft = icen - lamwid.valueAsNumber/2
+    iright = icen + lamwid.valueAsNumber/2
+    wl = [...Array(lamwid.valueAsNumber)].map((_,i) => wlmin + (ileft+i)*dwl)
+
+    datas = []
+    mus = ['0.20', '0.30', '0.80', '0.90'];
+    mus = ['0.20', '0.30', '0.35', '0.40', '0.50', '0.60', '0.70', '0.80', '0.90', '0.95', '0.97', '0.98', '0.99', '1.00'];
+    for (mu of mus)
+        datas.push({'mu': mu, y: await read('data/solarspectrum_mu'+mu+'.fits', 3800001 + ileft, 3800001 + iright)});
+
+    plotspec(wl, datas)
+}
+
+axisfmt = {showline: true, mirror: 'ticks', ticklen: 8, ticks: 'inside', 
+           minor: {ticks: 'inside', ticklen: 4}
+}
+
+function plotspec(wl, d) {
+    traces = d.map(dk => {return {x: wl, y: dk.y, line: {width: 1}, name: dk.mu}})
+
+    Plotly.newPlot('spectrum', traces, {
+        margin: {t: 10, b: 40},
+        hovermode:'closest',
+        xaxis: {title: 'vacuum wavelength <i>λ</i> [Å]', scaleanchor: 0, scaleratio: 0.01, ...axisfmt},
+        yaxis: {title: 'normalised flux', ...axisfmt},
+        separators: '.',   // no comma as thousand separator
+        legend: {title: {text: 'μ'}},
+    }, {responsive: true});
+
+    x0 = lamcen.valueAsNumber - dwl*lamwid.valueAsNumber/2
+    x1 = lamcen.valueAsNumber + dwl*lamwid.valueAsNumber/2
+
+    // selected range color
+    let i = [...document.querySelectorAll('[name="lamtip"]')].indexOf(document.querySelector('[name="lamtip"]:checked'))
+    markcol = colors[i * (i>0)]
+
+    Plotly.update('slider', {x: [[x0, x0], [x1, x1]],  line: [{color: markcol}, {color: markcol}]}, {}, [2, 3]);
+}
+
+async function plotslider() {
+    var response = await fetch('data/solar_4_trim');
+    buf = await response.text()
+    var d = buf.split(/\t|\n/).map(parseFloat),
+        x = d.filter((a,i) => i%3==0),
+        y1 = d.filter((a,i) => i%3==1),
+        y2 = d.filter((a,i) => i%3==2)
+
+    Plotly.newPlot(slider,
+       [{x: x, y: y2, name: "", line: {width: 1, color: '#bbb'}, showlegend: false},
+        {x: x, y: y1, name: "", line: {width: 1, color: '#bbb'}, showlegend: false, fill: 'tonexty'},
+        {x: [], y: [0, 1.2], name: "user range", line: {width: 2}, showlegend: false},
+        {x: [], y: [0, 1.2], name: "user range", line: {width: 2}, showlegend: false, fill: 'tonextx'},
+        ...lines.map((d, i) => {return {x: [d[0], d[0]], y: [0, 1.2], name: d[1], line: {width: 1, color: colors[i+1]}}}),
+       ],
+       {margin: {t: 5, b: 20, l: 30, r: 10},
+        xaxis: {...axisfmt},
+        yaxis: {range: [0, 1.2], ...axisfmt},
+        separators: '.',
+        showlegend: false,
+       },
+       {responsive: true,
+        displayModeBar: false})
+       .then(attach);
+}
+
+function attach() {
+    zoompan('#slider')
+    var timer = null
+    document.querySelector("#slider .nsewdrag").addEventListener('click', function(evt) {
+        // capture a potential double click with a short delay
+        if (event.detail === 1) {
+            timer = setTimeout(() => {
+                var bb = evt.target.getBoundingClientRect();
+                lamcen.value = sliderdiv._fullLayout.xaxis.p2d(evt.clientX - bb.left);
+                redo(1);
+            }, 200)
+        }
+        else {   // double click
+            clearTimeout(timer)
+        }
+    });
+};
+
+redo().then(zoompan)
+plotslider()
+ 
+</script>
+
+Ellwarth+ (in prep.)
+<br>See also:
+<ul>
+<li><a href="data/">data</a> (fits files)</li>
+<li><a href="https://www.astro.physik.uni-goettingen.de/research/flux_atlas">IAG solar flux atlas</a></li>
+</ul>
+<div id="info" style="font-family: monospace; text-align: right;"></div>
+Tips:
+<ul>
+<li>Click on the slider to manually set a new wavelength.</li>
+<li>Press '0' to set the lower y-range to zero. More short cuts are listed here <a href="https://github.com/mzechmeister/csvplotter">here</a>.</li>
+</ul
+
+</html>
