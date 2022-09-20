@@ -95,8 +95,8 @@ async function read(file, start, stop, func) {
 async function redo(user=false) {
     if (user) wluser.checked = true;
     console.log(lamcen.value)
-    icen = parseInt((lamcen.valueAsNumber - wlmin) / dwl)
 
+    icen = parseInt((lamcen.valueAsNumber - wlmin) / dwl)
     ileft = icen - lamwid.valueAsNumber/2
     iright = icen + lamwid.valueAsNumber/2
     wl = [...Array(lamwid.valueAsNumber)].map((_,i) => wlmin + (ileft+i)*dwl)
@@ -110,7 +110,7 @@ async function redo(user=false) {
     plotspec(wl, datas)
 }
 
-axisfmt = {showline: true, mirror: 'ticks', ticklen: 8, ticks: 'inside', 
+axisfmt = {showline: true, mirror: 'ticks', ticklen: 8, ticks: 'inside',
            minor: {ticks: 'inside', ticklen: 4}
 }
 
@@ -120,7 +120,7 @@ function plotspec(wl, d) {
     Plotly.newPlot('spectrum', traces, {
         margin: {t: 10, b: 40},
         hovermode:'closest',
-        xaxis: {title: 'vacuum wavelength <i>λ</i> [Å]', scaleanchor: 0, scaleratio: 0.01, ...axisfmt},
+        xaxis: {title: 'vacuum wavelength <i>λ</i> [Å]', ...axisfmt},
         yaxis: {title: 'normalised flux', ...axisfmt},
         separators: '.',   // no comma as thousand separator
         legend: {title: {text: 'μ'}},
@@ -182,7 +182,7 @@ function attach() {
 
 redo().then(zoompan)
 plotslider()
- 
+
 </script>
 
 Ellwarth+ (in prep.)
@@ -197,6 +197,6 @@ Tips:
 <ul>
 <li>Click on the slider to manually set a new wavelength.</li>
 <li>Press '0' to set the lower y-range to zero. More short cuts are listed here <a href="https://github.com/mzechmeister/csvplotter">here</a>.</li>
-</ul
+</ul>
 
 </html>
