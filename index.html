@@ -79,7 +79,44 @@ wlmin = 4200   // [Angstrom]
 dwl = 0.001
 
 
-async function read(file, start, stop, func) {
+async function readatlas(wlstart, wlstop) {
+    // pl xi=NaN, '<head -10000 ../solar-atlas/data/solar_atlas_V1' us 0:(dx=$1-xi, xi=$1,dx), xi=NaN, '<tail -10000 ../solar-atlas/data/solar_atlas_V1' us 0:(dx=$1-xi, xi=$1,dx), xi=NaN, '../solar-atlas/data/solar_atlas_V1' every 100 us 0:(dx=$1-xi, xi=$1,dx/100), xi=NaN, '<head -1697300 ../solar-atlas/data/solar_atlas_V1 |tail -300' us 0:(dx=$1-xi, xi=$1,dx)
+    // !awk 'NR==1 {print NR, 1e8/$1, $0}' ../solar-atlas/data/solar_atlas_V1
+    //      1 24700.1 04048.5689318294      0.9130446175    0.0021814581
+    // !awk 'NR==2360282,NR==2360285 {print NR, 1e8/$1, $0}' ../solar-atlas/data/solar_atlas_V1
+    // 2360282 15810 06325.1082636120  1.0005637998    0.1049125418
+    // 2360283 15810 06325.1097705158  1.0004275880    0.1043522432
+    // 2360284 15779.7 06337.2573958258        0.9670763636    0.1037384272
+    // 2360285 15779.7 06337.2589084838        0.9678726141    0.1030937359
+    // pl '<head -2360400 ../solar-atlas/data/solar_atlas_V1 |tail -400' us 0:(1e8/$1)
+    // data have gap pl '../solar-atlas/data/solar_atlas_V1' us (1e8/$1):2 every ::2360000::2361000
+
+    wnstart = 1e8 / wlstart
+    wnstop = 1e8 / wlstop
+    dwn = (1e8/6325.1097705158 - 1e8/4048.5689318294) / (2360283-1)
+    wnref = 1e8/4048.5689318294
+    linegapsize = 8045 // (1e8/6337.2573958258 - 1e8/6325.1097705158)/dwn // == 8045.9999922165225
+    linegapstart = 2360283
+    linegapstop = linegapstart + linegapsize
+    linebytes = 43
+    linestart = parseInt((wnstart-wnref) / dwn)
+    linestop = parseInt((wnstop-wnref) / dwn)
+    if (linestart > linegapstart) linestart = (linestart < linegapstop) ? linegapstop : linestart - linegapsize
+    if (linestop > linegapstart) linestop = (linestop < linegapstop) ? linegapstart : linestop - linegapsize
+
+    var headers = {Range: `bytes=${linebytes*linestart}-${linebytes*linestop-1}`};
+    var response = await fetch('../solar-atlas/data/solar_atlas_V1', {headers});
+    buf = await response.text()
+    d = buf.slice(0, -1).split(/\t|\n/).map(parseFloat)
+    x = d.filter((a,i) => i%3==0)
+    y = d.filter((a,i) => i%3==1)
+
+    info.innerHTML = '../solar-atlas/data/solar_atlas_V1'
+
+    return [x, y]
+}
+
+async function readfits(file, start, stop) {
     var headers = {Range: `bytes=${2880+8*start}-${2880+8*stop-1}`};
     var response = await fetch(file, {headers});
 
@@ -105,17 +142,21 @@ async function redo(user=false) {
     mus = ['0.20', '0.30', '0.80', '0.90'];
     mus = ['0.20', '0.30', '0.35', '0.40', '0.50', '0.60', '0.70', '0.80', '0.90', '0.95', '0.97', '0.98', '0.99', '1.00'];
     for (mu of mus)
-        datas.push({'mu': mu, y: await read('data/solarspectrum_mu'+mu+'.fits', 3800001 + ileft, 3800001 + iright)});
+        datas.push({'mu': mu, y: await readfits('data/solarspectrum_mu'+mu+'.fits', 3800001 + ileft, 3800001 + iright)});
 
-    plotspec(wl, datas)
+    A = await readatlas(wl[0], wl.slice(-1))
+
+    plotspec(wl, datas, A)
 }
 
 axisfmt = {showline: true, mirror: 'ticks', ticklen: 8, ticks: 'inside',
            minor: {ticks: 'inside', ticklen: 4}
 }
 
-function plotspec(wl, d) {
+function plotspec(wl, d, A) {
     traces = d.map(dk => {return {x: wl, y: dk.y, line: {width: 1}, name: dk.mu}})
+
+    traces.push({x: A[0], y: A[1], line: {color: 'black'}, name: 'integrated'})
 
     Plotly.newPlot('spectrum', traces, {
         margin: {t: 10, b: 40},
