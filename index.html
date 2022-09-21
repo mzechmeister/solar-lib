@@ -78,38 +78,23 @@ for (const [i, li] of lines.entries()) {
 wlmin = 4200   // [Angstrom]
 dwl = 0.001
 
-
 async function readatlas(wlstart, wlstop) {
-    // pl xi=NaN, '<head -10000 ../solar-atlas/data/solar_atlas_V1' us 0:(dx=$1-xi, xi=$1,dx), xi=NaN, '<tail -10000 ../solar-atlas/data/solar_atlas_V1' us 0:(dx=$1-xi, xi=$1,dx), xi=NaN, '../solar-atlas/data/solar_atlas_V1' every 100 us 0:(dx=$1-xi, xi=$1,dx/100), xi=NaN, '<head -1697300 ../solar-atlas/data/solar_atlas_V1 |tail -300' us 0:(dx=$1-xi, xi=$1,dx)
-    // !awk 'NR==1 {print NR, 1e8/$1, $0}' ../solar-atlas/data/solar_atlas_V1
-    //      1 24700.1 04048.5689318294      0.9130446175    0.0021814581
-    // !awk 'NR==2360282,NR==2360285 {print NR, 1e8/$1, $0}' ../solar-atlas/data/solar_atlas_V1
-    // 2360282 15810 06325.1082636120  1.0005637998    0.1049125418
-    // 2360283 15810 06325.1097705158  1.0004275880    0.1043522432
-    // 2360284 15779.7 06337.2573958258        0.9670763636    0.1037384272
-    // 2360285 15779.7 06337.2589084838        0.9678726141    0.1030937359
-    // pl '<head -2360400 ../solar-atlas/data/solar_atlas_V1 |tail -400' us 0:(1e8/$1)
-    // data have gap pl '../solar-atlas/data/solar_atlas_V1' us (1e8/$1):2 every ::2360000::2361000
-
     wnstart = 1e8 / wlstart
     wnstop = 1e8 / wlstop
-    dwn = (1e8/6325.1097705158 - 1e8/4048.5689318294) / (2360283-1)
-    wnref = 1e8/4048.5689318294
-    linegapsize = 8045 // (1e8/6337.2573958258 - 1e8/6325.1097705158)/dwn // == 8045.9999922165225
-    linegapstart = 2360283
-    linegapstop = linegapstart + linegapsize
-    linebytes = 43
-    linestart = parseInt((wnstart-wnref) / dwn)
-    linestop = parseInt((wnstop-wnref) / dwn)
-    if (linestart > linegapstart) linestart = (linestart < linegapstop) ? linegapstop : linestart - linegapsize
-    if (linestop > linegapstart) linestop = (linestop < linegapstop) ? linegapstart : linestop - linegapsize
 
-    var headers = {Range: `bytes=${linebytes*linestart}-${linebytes*linestop-1}`};
-    var response = await fetch('../solar-atlas/data/solar_atlas_V1', {headers});
-    buf = await response.text()
-    d = buf.slice(0, -1).split(/\t|\n/).map(parseFloat)
-    x = d.filter((a,i) => i%3==0)
-    y = d.filter((a,i) => i%3==1)
+    CRVAL1 =  24700.0858041 // [cm^-1] Coordinate value at reference point
+    CDELT1 =  -0.003766534468 // [cm^-1] Coordinate increment at reference point
+
+    istart = parseInt((wnstart - CRVAL1) / CDELT1)
+    istop = parseInt((wnstop - CRVAL1) / CDELT1)
+
+    var headers = {Range: `bytes=${2880+4*istart}-${2880+4*istop-1}`};
+    var response = await fetch('data/solar_atlas_V1_405-1065.fits', {headers});
+
+    // swap endian
+    buf = await response.arrayBuffer()
+    x = [...Array(istop-istart)].map((_,i) => 1e8/(CRVAL1+CDELT1*(istart+i)))
+    y = new Float32Array(new Int8Array(buf.slice()).reverse().buffer).reverse()
 
     info.innerHTML = '../solar-atlas/data/solar_atlas_V1'
 
