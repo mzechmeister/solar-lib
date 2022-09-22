@@ -46,7 +46,9 @@
 <input type="radio" id="wluser" name="lamtip"><label for="wluser'" title="user" style="display: none">user</label>
 <label for="lamcen"><i>λ</i><sub>central</sub> [Å]</label> <input id="lamcen" type="number" value="6000" onchange="redo(1)">
 <label for="lamwid">width [px]</label> <input id="lamwid" type="number" value="6500" step="100" onchange="redo(1)"></div>
-<label><input type="checkbox" id="cb_sme" onchange="redo()">SME</label> <label><input type="checkbox" id="cb_batlow" onchange="redo()" checked>batlow colormap</label>
+<label><input type="checkbox" id="cb_sme" onchange="redo()">SME</label>
+ <label><input type="checkbox" id="cb_sme_nlte" onchange="redo()">SME NLTE</label>
+ <label><input type="checkbox" id="cb_batlow" onchange="redo()" checked>batlow colormap</label>
 
 <div id="wlopt" style="text-align: center"></div>
 <div id="slider" style="height: 120px" oncontextmenu="return false"></div>
@@ -102,16 +104,20 @@ async function readatlas(wlstart, wlstop) {
     return [x, y]
 }
 
-async function readsme(wlstart, wlstop, mu=0.30) {
+async function readsme(wlstart, wlstop, mu=0.30, suf='') {
     CRVAL1 = 4200.0007901877906988   // Angstrom
     CDELT1 = 0.0018295194517612
+    if (suf) {
+    CRVAL1 = 4200.0000675338387737
+    CDELT1 = 0.0018264308724913
+    }
     // wi = CRVAL1 * CDELT1^i  -> i = ln(wi/CRVAL1)/ln(CDELT1)
     // S = Sr e^(w/S_r) = Sr e^(s*(p-r)/S_r) = CRVAL e^(CDELT*(p-CRPIX)/CRVAL)
     istart = parseInt(Math.log(wlstart/CRVAL1) / CDELT1*CRVAL1)
     istop = parseInt(Math.log(wlstop/CRVAL1) / CDELT1*CRVAL1)
 
     var headers = {Range: `bytes=${2880+4*istart}-${2880+4*istop-1}`};
-    var response = await fetch('data/sme'+mu+'.fits', {headers});
+    var response = await fetch('data/sme'+suf+mu+'.fits', {headers});
 
     // swap endian
     buf = await response.arrayBuffer()
@@ -120,7 +126,7 @@ async function readsme(wlstart, wlstop, mu=0.30) {
     ynorm = Math.max(...y)
     y = y.map(yi => yi/ynorm)
 
-    info.innerHTML = 'data/sme'+mu+'.fits'
+    info.innerHTML = 'data/sme'+suf+mu+'.fits'
 
     return {x: x, y: y, mu: mu}
 }
@@ -424,8 +430,12 @@ async function redo(user=false) {
     if (cb_sme.checked)
         for (mu of mus)
             SME.push(await readsme(wl[0], wl.slice(-1), mu))
+    SME_nlte = []
+    if (cb_sme_nlte.checked)
+        for (mu of mus)
+            SME_nlte.push(await readsme(wl[0], wl.slice(-1), mu, '_nlte'))
 
-    plotspec(wl, datas, A, SME)
+    plotspec(wl, datas, A, SME, SME_nlte)
 }
 
 axisfmt = {showline: true, mirror: 'ticks', ticklen: 8, ticks: 'inside',
@@ -437,6 +447,7 @@ function plotspec(wl, d, A, SME) {
 
     traces.push({x: A[0], y: A[1], line: {color: 'black'}, name: 'integrated'})
     for (sme of SME) traces.push({x: sme.x, y: sme.y, name: 'SME '+sme.mu, line: {width: 1, color: colormap(+sme.mu), dash: 'dot'}})
+    for (sme of SME_nlte) traces.push({x: sme.x, y: sme.y, name: 'SME nlte'+sme.mu, line: {width: 1, color: colormap(+sme.mu), dash: 'dash'}})
 
     Plotly.newPlot('spectrum', traces, {
         margin: {t: 10, b: 40},
