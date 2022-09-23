@@ -48,6 +48,7 @@
 <label for="lamwid">width [px]</label> <input id="lamwid" type="number" value="6500" step="100" onchange="redo(1)"></div>
 <label><input type="checkbox" id="cb_sme" onchange="redo()">SME</label>
  <label><input type="checkbox" id="cb_sme_nlte" onchange="redo()">SME NLTE</label>
+ <label><input type="checkbox" id="cb_co5bold" onchange="redo()">CO5BOLD</label>
  <label><input type="checkbox" id="cb_batlow" onchange="redo()" checked>batlow colormap</label>
 
 <div id="wlopt" style="text-align: center"></div>
@@ -130,6 +131,29 @@ async function readsme(wlstart, wlstop, mu=0.30, suf='') {
 
     return {x: x, y: y, mu: mu}
 }
+
+async function readco5bold(wlstart, wlstop, mu=0.30) {
+    CRVAL1 = 2000.650146484375   // Angstrom
+    CDELT1 = 0.0022006456274539
+    fac = 1 // 1.00107
+    istart = parseInt(Math.log(wlstart/fac/CRVAL1) / CDELT1*CRVAL1)
+    istop = parseInt(Math.log(wlstop/fac/CRVAL1) / CDELT1*CRVAL1)
+
+    var headers = {Range: `bytes=${2880+4*istart}-${2880+4*istop-1}`};
+    var response = await fetch('data/co5bold'+mu+'.fits', {headers});
+
+    // swap endian
+    buf = await response.arrayBuffer()
+    x = [...Array(istop-istart)].map((_,i) => CRVAL1 * Math.exp((istart+i)*CDELT1/CRVAL1) *fac)
+    y = new Float32Array(new Int8Array(buf.slice()).reverse().buffer).reverse()
+    ynorm = Math.max(...y)
+    y = y.map(yi => yi/ynorm)
+
+    info.innerHTML = 'data/co5bold'+mu+'.fits'
+
+    return {x: x, y: y, mu: mu}
+}
+
 
 cm_batlow = [[0.0051932, 0.098238, 0.34984],
      [0.0090652, 0.10449, 0.35093],
@@ -435,19 +459,27 @@ async function redo(user=false) {
         for (mu of mus)
             SME_nlte.push(await readsme(wl[0], wl.slice(-1), mu, '_nlte'))
 
-    plotspec(wl, datas, A, SME, SME_nlte)
+    mus = ['0.20', '0.30', '0.40', '0.50'];
+    CO5BOLD = []
+    if (cb_co5bold.checked)
+        for (mu of mus)
+            CO5BOLD.push(await readco5bold(wl[0], wl.slice(-1), mu, '_nlte'))
+
+    plotspec(wl, datas, A, SME, SME_nlte, CO5BOLD)
 }
 
 axisfmt = {showline: true, mirror: 'ticks', ticklen: 8, ticks: 'inside',
            minor: {ticks: 'inside', ticklen: 4}
 }
 
-function plotspec(wl, d, A, SME) {
-    traces = d.map(dk => {return {x: wl, y: dk.y, line: {width: 1, color: colormap(+dk.mu)}, name: dk.mu}})
+function plotspec(wl, d, A, SME, SME_nlte, CO5BOLD) {
+//    traces = d.map(dk => {return {x: wl, y: dk.y, line: {width: 1, color: colormap(+dk.mu)}, name: dk.mu}})
+    traces = d.map(dk => {return {x: wl, y: dk.y, type: 'scattergl', mode: 'markers+lines', marker: {size: 3, color: colormap(+dk.mu)}, line: {width: 1}, name: dk.mu}})
 
     traces.push({x: A[0], y: A[1], line: {color: 'black'}, name: 'integrated'})
     for (sme of SME) traces.push({x: sme.x, y: sme.y, name: 'SME '+sme.mu, line: {width: 1, color: colormap(+sme.mu), dash: 'dot'}})
     for (sme of SME_nlte) traces.push({x: sme.x, y: sme.y, name: 'SME nlte'+sme.mu, line: {width: 1, color: colormap(+sme.mu), dash: 'dash'}})
+    for (co5bold of CO5BOLD) traces.push({x: co5bold.x, y: co5bold.y, name: 'CO5BOLD'+co5bold.mu, line: {width: 1, color: colormap(+co5bold.mu), dash: 'dashdot'}})
 
     Plotly.newPlot('spectrum', traces, {
         margin: {t: 10, b: 40},
