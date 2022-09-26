@@ -414,7 +414,7 @@ cm_batlow = [[0.0051932, 0.098238, 0.34984],
 
 function colormap(c) {
     if (cb_batlow.checked) {
-        [r, g, b] = cm_batlow[parseInt((Math.acos(c)-Math.acos(0.2))/(-Math.acos(0.2))*255)]
+        [r, g, b] = cm_batlow[parseInt((Math.acos(c)-Math.acos(0.09))/(-Math.acos(0.09))*255)];
         return "rgb("+255*r+","+255*g+","+255*b+")"
     }
     return ''
@@ -459,7 +459,7 @@ async function redo(user=false) {
         for (mu of mus)
             SME_nlte.push(await readsme(wl[0], wl.slice(-1), mu, '_nlte'))
 
-    mus = ['0.20', '0.30', '0.40', '0.50'];
+    mus = ['0.09', '0.41', '0.79', '1.00'];
     CO5BOLD = []
     if (cb_co5bold.checked)
         for (mu of mus)
