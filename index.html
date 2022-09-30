@@ -465,14 +465,14 @@ async function redo(user=false) {
 
     mus = ['0.09', '0.41', '0.79', '1.00'];
     CO5BOLD = []
-    if (cb_co5bold.checked)
+    if (cb_co5bold.checked) {
         w = (await readco5bold(wl[0], wl.slice(-1), '_wave')).y
         for (mu of mus) {
             d = await readco5bold(wl[0], wl.slice(-1), mu)
             d.x = w
             CO5BOLD.push(d)
         }
-
+    }
     plotspec(wl, datas, A, SME, SME_nlte, CO5BOLD)
 }
 
