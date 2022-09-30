@@ -106,6 +106,7 @@ async function readatlas(wlstart, wlstop) {
 }
 
 async function readsme(wlstart, wlstop, mu=0.30, suf='') {
+    CRPIX1 = 1
     CRVAL1 = 4200.0007901877906988   // Angstrom
     CDELT1 = 0.0018295194517612
     if (suf) {
@@ -122,7 +123,7 @@ async function readsme(wlstart, wlstop, mu=0.30, suf='') {
 
     // swap endian
     buf = await response.arrayBuffer()
-    x = [...Array(istop-istart)].map((_,i) => CRVAL1 * Math.exp((istart+i)*CDELT1/CRVAL1) )
+    x = [...Array(istop-istart)].map((_,i) => CRVAL1 * Math.exp((istart+i-CRPIX1)*CDELT1/CRVAL1) )
     y = new Float32Array(new Int8Array(buf.slice()).reverse().buffer).reverse()
     ynorm = Math.max(...y)
     y = y.map(yi => yi/ynorm)
@@ -139,15 +140,18 @@ async function readco5bold(wlstart, wlstop, mu=0.30) {
     istart = parseInt(Math.log(wlstart/fac/CRVAL1) / CDELT1*CRVAL1)
     istop = parseInt(Math.log(wlstop/fac/CRVAL1) / CDELT1*CRVAL1)
 
-    var headers = {Range: `bytes=${2880+4*istart}-${2880+4*istop-1}`};
+    b = mu=='_wave'? 8 : 4
+    var headers = {Range: `bytes=${2880+b*istart}-${2880+b*istop-1}`};
     var response = await fetch('data/co5bold'+mu+'.fits', {headers});
 
     // swap endian
     buf = await response.arrayBuffer()
     x = [...Array(istop-istart)].map((_,i) => CRVAL1 * Math.exp((istart+i)*CDELT1/CRVAL1) *fac)
-    y = new Float32Array(new Int8Array(buf.slice()).reverse().buffer).reverse()
-    ynorm = Math.max(...y)
-    y = y.map(yi => yi/ynorm)
+    y = new (mu=='_wave'? Float64Array : Float32Array)(new Int8Array(buf.slice()).reverse().buffer).reverse()
+    if (mu!='_wave') {
+        ynorm = Math.max(...y)
+        y = y.map(yi => yi/ynorm)
+    }
 
     info.innerHTML = 'data/co5bold'+mu+'.fits'
 
@@ -462,8 +466,12 @@ async function redo(user=false) {
     mus = ['0.09', '0.41', '0.79', '1.00'];
     CO5BOLD = []
     if (cb_co5bold.checked)
-        for (mu of mus)
-            CO5BOLD.push(await readco5bold(wl[0], wl.slice(-1), mu, '_nlte'))
+        w = (await readco5bold(wl[0], wl.slice(-1), '_wave')).y
+        for (mu of mus) {
+            d = await readco5bold(wl[0], wl.slice(-1), mu)
+            d.x = w
+            CO5BOLD.push(d)
+        }
 
     plotspec(wl, datas, A, SME, SME_nlte, CO5BOLD)
 }
