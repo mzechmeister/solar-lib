@@ -82,6 +82,22 @@ for (const [i, li] of lines.entries()) {
 wlmin = 4200   // [Angstrom]
 dwl = 0.001
 
+async function readfits(filename, start, stop, bitpix=-64) {
+    b = {'-32':4 , '-64': 8}[bitpix]
+    NumberArray = {'-32': Float32Array, '-64': Float64Array}[bitpix]
+
+    var headers = {Range: `bytes=${2880+b*start}-${2880+b*stop-1}`};
+    var response = await fetch(filename, {headers});
+
+    // swap endian
+    buf = await response.arrayBuffer()
+    d = new NumberArray(new Int8Array(buf.slice()).reverse().buffer).reverse()
+
+    info.innerHTML = filename
+
+    return d
+}
+
 async function readatlas(wlstart, wlstop) {
     wnstart = 1e8 / wlstart
     wnstop = 1e8 / wlstop
@@ -92,13 +108,8 @@ async function readatlas(wlstart, wlstop) {
     istart = parseInt((wnstart - CRVAL1) / CDELT1)
     istop = parseInt((wnstop - CRVAL1) / CDELT1)
 
-    var headers = {Range: `bytes=${2880+4*istart}-${2880+4*istop-1}`};
-    var response = await fetch('data/solar_atlas_V1_405-1065.fits', {headers});
-
-    // swap endian
-    buf = await response.arrayBuffer()
     x = [...Array(istop-istart)].map((_,i) => 1e8/(CRVAL1+CDELT1*(istart+i)))
-    y = new Float32Array(new Int8Array(buf.slice()).reverse().buffer).reverse()
+    y = await readfits('data/solar_atlas_V1_405-1065.fits', istart, istop, -32)
 
     info.innerHTML = '../solar-atlas/data/solar_atlas_V1'
 
@@ -118,13 +129,9 @@ async function readsme(wlstart, wlstop, mu=0.30, suf='') {
     istart = parseInt(Math.log(wlstart/CRVAL1) / CDELT1*CRVAL1)
     istop = parseInt(Math.log(wlstop/CRVAL1) / CDELT1*CRVAL1)
 
-    var headers = {Range: `bytes=${2880+4*istart}-${2880+4*istop-1}`};
-    var response = await fetch('data/sme'+suf+mu+'.fits', {headers});
-
-    // swap endian
-    buf = await response.arrayBuffer()
     x = [...Array(istop-istart)].map((_,i) => CRVAL1 * Math.exp((istart+i-CRPIX1)*CDELT1/CRVAL1) )
-    y = new Float32Array(new Int8Array(buf.slice()).reverse().buffer).reverse()
+    y = await readfits('data/sme'+suf+mu+'.fits', istart, istop, -32);
+
     ynorm = Math.max(...y)
     y = y.map(yi => yi/ynorm)
 
@@ -140,14 +147,11 @@ async function readco5bold(wlstart, wlstop, mu=0.30) {
     istart = parseInt(Math.log(wlstart/fac/CRVAL1) / CDELT1*CRVAL1)
     istop = parseInt(Math.log(wlstop/fac/CRVAL1) / CDELT1*CRVAL1)
 
-    b = mu=='_wave'? 8 : 4
-    var headers = {Range: `bytes=${2880+b*istart}-${2880+b*istop-1}`};
-    var response = await fetch('data/co5bold'+mu+'.fits', {headers});
+    b = mu=='_wave' ? -64 : -32
 
-    // swap endian
-    buf = await response.arrayBuffer()
     x = [...Array(istop-istart)].map((_,i) => CRVAL1 * Math.exp((istart+i)*CDELT1/CRVAL1) *fac)
-    y = new (mu=='_wave'? Float64Array : Float32Array)(new Int8Array(buf.slice()).reverse().buffer).reverse()
+    y = await readfits('data/co5bold'+mu+'.fits', istart, istop, b);
+
     if (mu!='_wave') {
         ynorm = Math.max(...y)
         y = y.map(yi => yi/ynorm)
@@ -422,19 +426,6 @@ function colormap(c) {
         return "rgb("+255*r+","+255*g+","+255*b+")"
     }
     return ''
-}
-
-async function readfits(file, start, stop) {
-    var headers = {Range: `bytes=${2880+8*start}-${2880+8*stop-1}`};
-    var response = await fetch(file, {headers});
-
-    // swap endian
-    buf = await response.arrayBuffer()
-    d = new Float64Array(new Int8Array(buf.slice()).reverse().buffer).reverse()
-
-    info.innerHTML = file
-
-    return d
 }
 
 async function redo(user=false) {
