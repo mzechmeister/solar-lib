@@ -50,7 +50,7 @@
 <label><input type="checkbox" id="cb_sme" onchange="redo()">SME</label>
  <label><input type="checkbox" id="cb_sme_nlte" onchange="redo()">SME NLTE</label>
  <label><input type="checkbox" id="cb_co5bold" onchange="redo()">CO5BOLD</label>
- <label style="float: right">colormap <select id="cmap" onchange="redo()">
+ <label style="float: right">colormap <select id="cmap" onchange="recolor()">
    <option>None</option>
    <option selected>portland</option>
    <option>batlow</option>
@@ -492,11 +492,18 @@ axisfmt = {showline: true, mirror: 'ticks', ticklen: 8, ticks: 'inside',
            minor: {ticks: 'inside', ticklen: 4}
 }
 
+function recolor() {
+    var all = [...datas, A, ...SME, ...SME_nlte, ...CO5BOLD]
+    var i_ok = all.map((e, i) => e.mu ? i : '').filter(Number)
+    var update = i_ok.map(i => colormap(+all[i].mu))
+    Plotly.restyle(spectrum, {'marker.color': update}, i_ok);
+}
+
 function plotspec(wl, d, A, SME, SME_nlte, CO5BOLD) {
 //    traces = d.map(dk => {return {x: wl, y: dk.y, line: {width: 1, color: colormap(+dk.mu)}, name: dk.mu}})
     traces = d.map(dk => {return {x: wl, y: dk.y, type: 'scattergl', mode: 'markers+lines', marker: {size: 3, color: colormap(+dk.mu)}, line: {width: 1}, name: dk.mu}})
 
-    traces.push({x: A[0], y: A[1], line: {color: 'black'}, name: 'integrated'})
+    traces.push({x: A[0], y: A[1], type: 'scattergl', line: {color: 'black'}, name: 'integrated'})
     for (sme of SME) traces.push({x: sme.x, y: sme.y, name: 'SME '+sme.mu, line: {width: 1, color: colormap(+sme.mu), dash: 'dot'}})
     for (sme of SME_nlte) traces.push({x: sme.x, y: sme.y, name: 'SME nlte'+sme.mu, line: {width: 1, color: colormap(+sme.mu), dash: 'dash'}})
     for (co5bold of CO5BOLD) traces.push({x: co5bold.x, y: co5bold.y, name: 'CO5BOLD'+co5bold.mu, line: {width: 1, color: colormap(+co5bold.mu), dash: 'dashdot'}})
