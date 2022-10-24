@@ -46,10 +46,16 @@
 <input type="radio" id="wluser" name="lamtip"><label for="wluser'" title="user" style="display: none">user</label>
 <label for="lamcen"><i>λ</i><sub>central</sub> [Å]</label> <input id="lamcen" type="number" value="6000" onchange="redo(1)">
 <label for="lamwid">width [px]</label> <input id="lamwid" type="number" value="6500" step="100" onchange="redo(1)"></div>
+<div style="overflow: hidden">
 <label><input type="checkbox" id="cb_sme" onchange="redo()">SME</label>
  <label><input type="checkbox" id="cb_sme_nlte" onchange="redo()">SME NLTE</label>
  <label><input type="checkbox" id="cb_co5bold" onchange="redo()">CO5BOLD</label>
- <label><input type="checkbox" id="cb_batlow" onchange="redo()" checked>batlow colormap</label>
+ <label style="float: right">colormap <select id="cmap" onchange="redo()">
+   <option>None</option>
+   <option selected>portland</option>
+   <option>batlow</option>
+ </select></label>
+</div>
 
 <div id="wlopt" style="text-align: center"></div>
 <div id="slider" style="height: 120px" oncontextmenu="return false"></div>
@@ -420,12 +426,27 @@ cm_batlow = [[0.0051932, 0.098238, 0.34984],
      [0.98205, 0.79723, 0.97207],
      [0.98135, 0.80041, 0.98127]]
 
+// https://github.com/plotly/plotly.js/blob/master/src/components/colorscale/scales.js
+cm_portland = [
+     [0, 'rgb(12,51,131)'], [0.25, 'rgb(10,136,186)'],
+     [0.5, 'rgb(242,211,56)'], [0.75, 'rgb(242,143,56)'],
+     [1, 'rgb(217,30,30)']
+]
+
 function colormap(c) {
-    if (cb_batlow.checked) {
-        [r, g, b] = cm_batlow[parseInt((Math.acos(c)-Math.acos(0.09))/(-Math.acos(0.09))*255)];
-        return "rgb("+255*r+","+255*g+","+255*b+")"
-    }
-    return ''
+    var zn = (Math.acos(c)-Math.acos(0.09)) / (-Math.acos(0.09))   // 0-1 normalised
+    if (cmap.value == "batlow") {
+        rgb = cm_batlow[parseInt(zn*255)].map(x => x*255);
+     } else if (cmap.value == "portland") {
+        var z = 4 * zn
+        var zi = Math.max(parseInt(z), 0)
+        var c0 = cm_portland[zi][1].split(/[,()]/)
+        var c1 = cm_portland[Math.min(4, zi+1)][1].split(/[,()]/)
+        var zfrac = z - zi;
+        rgb = [1, 2, 3].map(i => +c0[i] + zfrac * (c1[i]-c0[i]));   // linear interpolate
+    } else   // no colormap; alternating default colors
+        return ''
+    return "rgb("+rgb.join()+")"
 }
 
 async function redo(user=false) {
