@@ -9,8 +9,12 @@
     color: gray;
 }
 
-#lamcen:focus, #lamwid:focus {
+lamcen:focus, #lamwid:focus {
     color: unset;
+}
+
+[for^="lam"], .optpanel > label {
+   padding-left: 20px;
 }
 
 #wlopt label {
@@ -46,15 +50,15 @@
 <input type="radio" id="wluser" name="lamtip"><label for="wluser'" title="user" style="display: none">user</label>
 <label for="lamcen"><i>λ</i><sub>central</sub> [Å]</label> <input id="lamcen" type="number" value="6000" onchange="redo(1)">
 <label for="lamwid">width [px]</label> <input id="lamwid" type="number" value="6500" step="100" onchange="redo(1)"></div>
-<div style="overflow: hidden">
+<div class="optpanel" style="overflow: hidden">
 <label><input type="checkbox" id="cb_sme" onchange="redo()">SME</label>
- <label><input type="checkbox" id="cb_sme_nlte" onchange="redo()">SME NLTE</label>
- <label><input type="checkbox" id="cb_co5bold" onchange="redo()">CO5BOLD</label>
- <label style="float: right">colormap <select id="cmap" onchange="recolor()">
+<label><input type="checkbox" id="cb_sme_nlte" onchange="redo()">SME NLTE</label>
+<label><input type="checkbox" id="cb_co5bold" onchange="redo()">CO5BOLD</label>
+<label style="float: right">colormap <select id="cmap" onchange="recolor()">
    <option>None</option>
    <option selected>portland</option>
    <option>batlow</option>
- </select></label>
+</select></label>
 </div>
 
 <div id="wlopt" style="text-align: center"></div>
