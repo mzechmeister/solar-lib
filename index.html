@@ -544,9 +544,11 @@ function plotspec(wl, d, A, SME, SME_nlte, CO5BOLD) {
         elem.num = num;
         elem.lw = traces[num].line.width
         elem.onmouseenter = () => {
-            Plotly.restyle(spectrum, {'line.width': event.target.lw+1 || 3, 'marker.size': 5}, event.target.num)
+            Plotly.restyle(spectrum, {'opacity': 0.2})
+            Plotly.restyle(spectrum, {'opacity': 1., 'line.width': event.target.lw+1 || 3, 'marker.size': 5}, event.target.num)
         };
         elem.onmouseout = () => {
+            Plotly.restyle(spectrum, {'opacity': null})
             Plotly.restyle(spectrum, {'line.width': event.target.lw || 2, 'marker.size': 3}, event.target.num)
         }
     }
@@ -602,7 +604,8 @@ plotslider()
 </script>
 <div id="info" style="font-family: monospace; text-align: right;"></div>
 
-Ellwarth+ (A&amp;A, in prep.)
+Ellwarth+ (A&amp;A, submitted)<br>
+Reiners+ (A&amp;A, in prep.)<br>
 <br>See also:
 <ul>
 <li><a href="data/">data</a> (fits files)</li>
