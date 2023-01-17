@@ -59,7 +59,7 @@ ul {
 <div class="optpanel" style="overflow: hidden">
 <label><input type="checkbox" id="cb_sme" onchange="redo()">SME</label>
 <label><input type="checkbox" id="cb_sme_nlte" onchange="redo()">SME NLTE</label>
-<label><input type="checkbox" id="cb_co5bold" onchange="redo()">CO5BOLD</label>
+<label><input type="checkbox" id="cb_co5bold" onchange="redo()">CO<sup>5</sup>BOLD</label>
 <input id="func" style="display:none; width: 50ch;" onchange="ff = new Function('x', 'return '+this.value); yy = x.map(ff); Plotly.addTraces(spectrum, {'x': x,'y': yy})" value='1-0.6*Math.exp(-0.5*Math.pow((x/lamcen.value-1)/(3/3e5),2))'>
 <label style="float: right">colormap <select id="cmap" onchange="recolor()">
    <option>None</option>
@@ -84,18 +84,23 @@ colors = [
     '#e377c2',  // raspberry yogurt pink
     '#7f7f7f',  // middle gray
     '#bcbd22',  // curry yellow-green
-    '#17becf'   // blue-teal
+    '#17becf',  // blue-teal
 ]
 
-lines = [[5421.85, "Mn 542"], [5472.15, "Mn 574"], [5891.42, "NaD<sub>2</sub>"], [5897.496, "NaD<sub>1</sub>"],
-         [6175.05, "FeI 617"],
-         [6303.7, "FeI 630"],
-         [6564.5, "Hα"],
-         [8000, "800"]
+lines = [[5185.06,  "MgI 518"],
+         [5384.89,  "FeI 538"],
+         [5421.85,  "Mn 542"],
+         [5472.15,  "Mn 574"],
+         [5891.42,  "NaD<sub>2</sub>"],
+         [5897.496, "NaD<sub>1</sub>"],
+         [6163.88,  "CaI 616"],
+         [6175.05,  "FeI 617"],
+         [6303.7,   "FeI 630"],
+         [6564.5,   "Hα"],
 ]
 
 for (const [i, li] of lines.entries()) {
-    wlopt.innerHTML += '<input type="radio" id="l'+li[0]+'" name="lamtip" onclick="lamcen.value='+li[0]+'; redo()"><label for="l'+li[0]+'" title="'+li[0]+'" style="background-color:'+colors[i+1]+'">'+li[1]+'</label>'
+    wlopt.innerHTML += '<input type="radio" id="l'+li[0]+'" name="lamtip" onclick="lamcen.value='+li[0]+'; redo()"><label for="l'+li[0]+'" title="'+li[0]+'" style="background-color:'+colors[i]+'">'+li[1]+'</label>'
 }
 
 wlmin = 4200   // [Angstrom]
