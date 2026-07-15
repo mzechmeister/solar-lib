@@ -57,6 +57,8 @@ ul {
 <label for="lamcen"><i>λ</i><sub>central</sub> [Å]</label> <input id="lamcen" type="number" value="6000" onchange="redo(1)">
 <label for="lamwid">width [px]</label> <input id="lamwid" type="number" value="6500" step="100" onchange="redo(1)"></div>
 <div class="optpanel" style="overflow: hidden">
+<label><input type="checkbox" id="cb_iag_atm" onchange="redo()">IAG+atm</label>
+<label><input type="checkbox" id="cb_iag" onchange="redo()" checked>IAG</label>
 <label><input type="checkbox" id="cb_sme" onchange="redo()">SME</label>
 <label><input type="checkbox" id="cb_sme_nlte" onchange="redo()">SME NLTE</label>
 <label><input type="checkbox" id="cb_co5bold" onchange="redo()">CO<sup>5</sup>BOLD</label>
@@ -120,6 +122,33 @@ async function readfits(filename, start, stop, bitpix=-64) {
     info.innerHTML = filename
 
     return d
+}
+
+async function readfitsbin(filename, wlstart, wlstop, bitpix=-64) {
+    b = {'-32':4 , '-64': 8}[bitpix]
+    NumberArray = {'-32': Float32Array, '-64': Float64Array}[bitpix]
+
+    CRVAL1 =  4200
+    CDELT1 =  0.001
+
+    istart = parseInt((wlstart - CRVAL1) / CDELT1)
+    istop = parseInt((wlstop - CRVAL1) / CDELT1)
+
+    var headers = {Range: `bytes=${2880+2880+b*2*istart}-${2880+2880+b*2*istop-1}`};
+    var response = await fetch(filename, {headers});
+
+    // swap endian
+    buf = await response.arrayBuffer()
+    d = new NumberArray(new Int8Array(buf.slice()).reverse().buffer).reverse()
+    x = new NumberArray(d.length/2)
+    y = new NumberArray(d.length/2)
+    for(i=0; i<x.length; i++) {
+        x[i] = d[2*i]
+        y[i] = d[2*i+1]
+    }
+    info.innerHTML = filename
+
+    return [x, y]
 }
 
 async function readatlas(wlstart, wlstop) {
@@ -482,7 +511,12 @@ async function redo(user=false) {
     for (mu of mus)
         datas.push({'mu': mu, y: await readfits('data/solarspectrum_mu'+mu+'.fits', 3800001 + ileft, 3800001 + iright)});
 
-    A = await readatlas(wl[0], wl.slice(-1))
+    A = null
+    B = null
+    if (cb_iag.checked)
+       A = await readatlas(wl[0], wl.slice(-1))
+    if (cb_iag_atm.checked)
+       B = await readfitsbin('data/IAG23_atlas.fits', wl[0], wl.slice(-1))
     mus = ['0.20', '0.30', '0.40', '0.50', '0.60', '0.70', '0.80', '0.90', '0.95', '0.98', '0.99', '1.00'];
     SME = []
     if (cb_sme.checked)
@@ -503,7 +537,7 @@ async function redo(user=false) {
             CO5BOLD.push(d)
         }
     }
-    plotspec(wl, datas, A, SME, SME_nlte, CO5BOLD)
+    plotspec(wl, datas, A, B, SME, SME_nlte, CO5BOLD)
 }
 
 axisfmt = {showline: true, mirror: 'ticks', ticklen: 8, ticks: 'inside',
@@ -511,17 +545,20 @@ axisfmt = {showline: true, mirror: 'ticks', ticklen: 8, ticks: 'inside',
 }
 
 function recolor() {
-    var all = [...datas, A, ...SME, ...SME_nlte, ...CO5BOLD]
+    var all = [...datas, A, B, ...SME, ...SME_nlte, ...CO5BOLD]
     var i_ok = all.map((e, i) => e.mu ? i : '').filter(Number)
     var update = i_ok.map(i => colormap(+all[i].mu))
     Plotly.restyle(spectrum, {'marker.color': update}, i_ok);
 }
 
-function plotspec(wl, d, A, SME, SME_nlte, CO5BOLD) {
+function plotspec(wl, d, A, B, SME, SME_nlte, CO5BOLD) {
 //    traces = d.map(dk => {return {x: wl, y: dk.y, line: {width: 1, color: colormap(+dk.mu)}, name: dk.mu}})
     traces = d.map(dk => {return {x: wl, y: dk.y, type: 'scattergl', mode: 'markers+lines', marker: {size: 3, color: colormap(+dk.mu)}, line: {width: 1}, name: dk.mu}})
 
-    traces.push({x: A[0], y: A[1], type: 'scattergl', line: {color: 'black'}, name: 'integrated'})
+    if (cb_iag.checked)
+       traces.push({x: A[0], y: A[1], type: 'scattergl', line: {color: 'black'}, name: 'integrated'})
+    if (cb_iag_atm.checked)
+       traces.push({x: B[0], y: B[1], type: 'scattergl', line: {color: 'gray', dash: 'dash'}, name: 'integrated + atm'})
     for (sme of SME) traces.push({x: sme.x, y: sme.y, name: 'SME '+sme.mu, line: {width: 1, color: colormap(+sme.mu), dash: 'dot'}})
     for (sme of SME_nlte) traces.push({x: sme.x, y: sme.y, name: 'SME nlte'+sme.mu, line: {width: 1, color: colormap(+sme.mu), dash: 'dash'}})
     for (co5bold of CO5BOLD) traces.push({x: co5bold.x, y: co5bold.y, name: 'CO5BOLD'+co5bold.mu, line: {width: 1, color: colormap(+co5bold.mu), dash: 'dashdot'}})
