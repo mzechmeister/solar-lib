@@ -569,7 +569,7 @@ function plotspec(wl, d, A, B, SME, SME_nlte, CO5BOLD) {
         xaxis: {title: 'vacuum wavelength <i>λ</i> [Å]', ...axisfmt},
         yaxis: {title: 'normalised flux', ...axisfmt},
         separators: '.',   // no comma as thousand separator
-        legend: {title: {text: 'μ'}},
+        legend: {title: {text: '<i>μ</i>'}},
     }, {responsive: true});
 
     x0 = lamcen.valueAsNumber - dwl*lamwid.valueAsNumber/2
@@ -646,8 +646,9 @@ plotslider()
 </script>
 <div id="info" style="font-family: monospace; text-align: right;"></div>
 
-<a href="https://ui.adsabs.harvard.edu/abs/2023A%26A...673A..19E">Ellwarth+ (2023, A&amp;A, 673, A19)</a><br>
+<a href="https://ui.adsabs.harvard.edu/abs/2023A%26A...673A..19E">Ellwarth+ (2023, A&amp;A, 673, A19)</a>, <a href="https://cdsarc.cds.unistra.fr/ftp/J/A+A/673/A19/fits">data at CDS</a><br>
 <a href="https://ui.adsabs.harvard.edu/abs/2023A%26A...673A..71R">Reiners+ (2023, A&amp;A, 673, A71)</a><br>
+<a href="https://ui.adsabs.harvard.edu/abs/2025A%26A...702A..97H">Hanassi-Savari+ (2025, A&amp;A, 702, A97)</a>, <a href="https://cdsarc.cds.unistra.fr/ftp/J/A+A/702/A97/fits">data at CDS</a><br>
 <br>See also:
 <ul>
 <li><a href="data/">data</a> (fits files)</li>
